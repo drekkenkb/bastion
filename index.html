@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#12141a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bastion">
+  <title>Last Bastion</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <section id="title" class="screen">
+    <div class="title-inner">
+      <img src="icon.svg" alt="" class="logo">
+      <h1>Last Bastion</h1>
+      <p class="tagline">A roguelike tower defense</p>
+      <div class="title-buttons">
+        <button id="btn-continue" class="primary" hidden>Continue run</button>
+        <button id="btn-new" class="primary">New run</button>
+        <button id="btn-help">How to play</button>
+      </div>
+      <p id="stats" class="muted"></p>
+    </div>
+  </section>
+
+  <section id="map" class="screen" hidden>
+    <header class="bar">
+      <span class="stat" id="map-lives"></span>
+      <span class="stat" id="map-coins"></span>
+      <span class="grow" id="map-act"></span>
+      <button class="icon" id="map-menu" aria-label="Menu">☰</button>
+    </header>
+    <div class="owned">
+      <div id="map-relics" class="relics"></div>
+      <div id="map-towers" class="tower-chips"></div>
+    </div>
+    <div id="map-scroll"><div id="map-board"></div></div>
+  </section>
+
+  <section id="battle" class="screen" hidden>
+    <header class="bar">
+      <span class="stat" id="hud-lives"></span>
+      <span class="stat" id="hud-gold"></span>
+      <span class="grow" id="hud-wave"></span>
+      <button class="icon" id="btn-speed" aria-label="Speed">1×</button>
+      <button class="icon" id="btn-pause" aria-label="Pause">⏸</button>
+      <button class="send" id="btn-send">Send wave</button>
+    </header>
+    <div id="field-wrap"><canvas id="field"></canvas></div>
+    <footer id="dock"></footer>
+  </section>
+
+  <div id="modal" class="modal" hidden><div class="sheet" id="sheet"></div></div>
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
