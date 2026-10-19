@@ -1,6 +1,6 @@
 // Cache-first so the game works offline. build.sh stamps the cache name, so each deploy starts a fresh cache and the
 // old one is dropped.
-const CACHE = "bastion-21cad7308bcc";
+const CACHE = "bastion-4f55c8e62777";
 const SHELL = ["./", "index.html", "app.js", "app.css", "data.js", "stats.js", "level.js", "battle.js", "run.js", "render.js",
   "manifest.webmanifest", "icon.svg", "icon-180.png"];
 

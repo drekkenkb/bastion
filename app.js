@@ -72,7 +72,8 @@ function showHelp(back = closeModal) {
       <li>In a battle, pick a tower from the bar at the bottom and tap a grass tile to build it. On a touchscreen, the
         first tap shows its range and the second tap builds.</li>
       <li>Tap a tower to upgrade it, sell it, or change what it aims at.</li>
-      <li>Press <b>Send wave</b> when you're ready. Sending the next wave while enemies are still on the field pays a bonus.</li>
+      <li>Press <b>Start</b> when you're ready, then <b>Next</b> for each wave after. Sending the next wave while enemies are still on the field pays a bonus.</li>
+      <li>Turn on <b>Auto</b> to send every wave early on its own, bonus included, as soon as the previous one has finished arriving. You still press Start yourself.</li>
       <li>Every enemy that gets through costs lives (more for elites and bosses), and <b>lives carry over between battles</b>.
         Gold doesn't: every battle starts fresh.</li>
       <li>Winning earns coins for shops and a choice of rewards: new towers, tower perks, and relics that change the rules.</li>
@@ -316,11 +317,12 @@ function startBattle() {
   const field = genField(R.rngFor(run, "field", p.row), portrait);
   const plan = genWaves(R.rngFor(run, "waves", p.row), R.depth(run, p.row), p.kind, run.act);
   const b = new Battle(field, plan, computeMods(run), run, { onLeak: save });
-  st = { b, kind: p.kind, row: p.row, placing: null, selected: null, ghost: null, speed: st?.speed || 1, paused: false,
+  st = { b, kind: p.kind, row: p.row, placing: null, selected: null, ghost: null, speed: st?.speed || 1, paused: false, auto,
     endAt: 0, time: 0, last: performance.now(), hud: {} };
   layoutBattle();
   renderDock();
   $("btn-speed").textContent = `${st.speed}×`;
+  $("btn-auto").classList.toggle("on", auto);
   requestAnimationFrame(frame);
 }
 
@@ -346,7 +348,13 @@ function frame(now) {
   s.last = now;
   if (!s.paused && $("modal").hidden) {
     let sim = dt * s.speed;
-    while (sim > 1e-6) { const step = Math.min(sim, 1 / 60); s.b.update(step); sim -= step; }
+    while (sim > 1e-6) {
+      const step = Math.min(sim, 1 / 60);
+      s.b.update(step);
+      sim -= step;
+      // Auto-send: once the first wave is out, send each next wave as soon as the last one has finished arriving.
+      if (s.auto && s.b.wave > 0 && s.b.canSend) s.b.sendWave();
+    }
     s.time += dt * s.speed;
   }
   if (s.selected && !s.b.towers.includes(s.selected)) { s.selected = null; renderDock(); }
@@ -375,8 +383,9 @@ function updateHud() {
   set("lives", run.lives, v => ($("hud-lives").textContent = `♥ ${v}`));
   set("gold", Math.floor(b.gold), v => { $("hud-gold").textContent = `💰 ${v}`; refreshDock(); });
   const tag = st.kind === "boss" ? " · Boss" : st.kind === "elite" ? " · Elite" : "";
-  set("wave", `${b.wave}/${b.waveCount}${tag}`, v => ($("hud-wave").textContent = `Wave ${v}`));
-  const label = b.wave === 0 ? "Start" : b.wave >= b.waveCount ? "Last wave" : b.state === "fight" ? "Next wave ▸" : `Send wave ${b.wave + 1}`;
+  set("wave", `${b.wave}/${b.waveCount}${tag}`, v => ($("hud-wave").textContent = `🌊 ${v}`));
+  // Short labels, so the wave counter keeps its room in the top bar on phones.
+  const label = b.wave === 0 ? "Start" : b.wave >= b.waveCount ? "Final" : b.state === "fight" ? "Next ▸" : "Send ▸";
   set("send", `${label}|${b.canSend}|${b.state}`, () => {
     const btn = $("btn-send");
     btn.textContent = label;
@@ -408,11 +417,11 @@ function renderDock() {
     dock.innerHTML = `<div class="tpanel">
       <img src="${towerIcon(t.type)}" alt="">
       <div class="info"><b>${def.name} · Lv ${t.level}</b><small>${statLine(t)}</small></div>
+      <button data-a="close" class="icon" aria-label="Close">✕</button>
       <div class="acts">
         ${aims ? `<button data-a="target">Aim: ${t.target}</button>` : ""}
         <button data-a="up" ${t.level >= MAX_LEVEL ? "disabled" : ""}>${t.level >= MAX_LEVEL ? "Max level" : `Upgrade 💰${up}`}</button>
         <button data-a="sell">Sell +${b.sellValue(t)}</button>
-        <button data-a="close" class="icon" aria-label="Close">✕</button>
       </div></div>`;
     on(dock, "[data-a=target]", () => { t.target = TARGET_MODES[(TARGET_MODES.indexOf(t.target) + 1) % TARGET_MODES.length]; renderDock(); });
     on(dock, "[data-a=up]", () => { if (b.upgrade(t)) renderDock(); else toast("Not enough gold"); });
@@ -481,6 +490,16 @@ $("field").addEventListener("pointerleave", ev => {
 });
 
 $("btn-send").addEventListener("click", () => st?.b.sendWave());
+// Auto-send stays on between battles and app launches until it's turned off.
+let auto = (() => { try { return localStorage.getItem("bastion.autoSend") === "1"; } catch { return false; } })();
+function toggleAuto() {
+  auto = !auto;
+  try { localStorage.setItem("bastion.autoSend", auto ? "1" : "0"); } catch { /* private mode */ }
+  $("btn-auto").classList.toggle("on", auto);
+  if (st) st.auto = auto;
+  toast(auto ? "Auto-send on: each wave goes out early, as soon as the last one is in" : "Auto-send off", 2500);
+}
+$("btn-auto").addEventListener("click", toggleAuto);
 $("btn-speed").addEventListener("click", () => {
   if (!st) return;
   st.speed = st.speed >= 3 ? 1 : st.speed + 1;
@@ -520,6 +539,7 @@ document.addEventListener("visibilitychange", () => {
 document.addEventListener("keydown", ev => {
   if (!st || !$("modal").hidden) return;
   if (ev.key === " ") { ev.preventDefault(); st.b.sendWave(); }
+  else if (ev.key === "a") toggleAuto();
   else if (ev.key === "Escape") { st.placing = null; st.selected = null; st.ghost = null; renderDock(); }
   else if (/^[1-9]$/.test(ev.key) && run.towers[+ev.key - 1]) {
     const t = run.towers[+ev.key - 1];
